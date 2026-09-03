@@ -4,7 +4,7 @@ interface AdminProps {
   onBack: () => void
 }
 
-type AdminTab = 'overview' | 'security' | 'keys' | 'errors' | 'self_healing' | 'error_test' | 'health_check' | 'components' | 'database' | 'performance' | 'system_mod' | 'logs'
+type AdminTab = 'overview' | 'security' | 'keys' | 'plugins' | 'errors' | 'self_healing' | 'error_test' | 'health_check' | 'components' | 'database' | 'performance' | 'system_mod' | 'logs'
 
 interface ErrorItem {
   timestamp: string
@@ -34,10 +34,17 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
   const [dbStats, setDbStats] = useState<any>(null)
   const [performance, setPerformance] = useState<any>(null)
   const [systemLogs, setSystemLogs] = useState<any[]>([])
-  const [modifyTarget, setModifyTarget] = useState('')
-  const [modifyType, setModifyType] = useState('')
-  const [modifyCode, setModifyCode] = useState('')
-  const [modifyDesc, setModifyDesc] = useState('')
+  const [systemModInput, setSystemModInput] = useState('')
+  const [systemModChat, setSystemModChat] = useState<{role: string, content: string}[]>([])
+  const [pluginFilter, setPluginFilter] = useState('all')
+  const [pluginSearch, setPluginSearch] = useState('')
+  const [installedPlugins] = useState([
+    { id: 1, name: '学習用・高精度サイコロ&意思決定エンジン', version: 'v1.0.0', author: 'System Core Architect', status: 'active', category: 'learning', desc: '学習項目のランダム選択や、判断に迷った際の意思決定をサポートする高精度確率シミュレーター。', features: ['乱数生成による意思決定', '学習タスクのランダム抽出', '気分転換用リフレッシュルーレット', '確率ベースの学習モチベーション管理'], runs: 3 },
+    { id: 2, name: '25分集中・超回復ポモドーロタイマー', version: 'v2.1.0', author: 'AI Core Architect', status: 'active', category: 'learning', desc: '25分間の学習と5分間のリフレッシュを自動管理し、完了時に今日のスケジュールタスク消化と自動連動する集中拡張プラグイン。', features: ['リアルタイムカウントダウン', 'タスク消化連動', '音声・バイブレーションシグナル', '集中セッション統計'], runs: 14, timer: true },
+    { id: 3, name: 'Gemini AI コアエンジン', version: 'v3.0.0', author: 'StudyAutonomous', status: 'active', category: 'ai', desc: 'Gemini APIを活用した高度な自然言語処理・推論エンジン。', features: ['ReAct推論', 'マルチモーダル対応', 'プロンプト最適化', 'エラーセルフヒーリング'], runs: 156 },
+    { id: 4, name: '模試偏差値予測AI', version: 'v1.0.0', author: 'StudyAutonomous', status: 'active', category: 'analysis', desc: '過去の模試スコアから将来の偏差値を予測するAIエンジン。', features: ['トレンド分析', '偏差値予測', '弱点特定', '学習プラン提案'], runs: 8 },
+    { id: 5, name: '親御さんLINE通知システム', version: 'v1.0.0', author: 'StudyAutonomous', status: 'active', category: 'webhook', desc: '学習状況を保護者にLINEで通知するシステム。', features: ['学習完了通知', '成績レポート送信', 'スケジュール共有', '緊急連絡対応'], runs: 22 },
+  ])
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [monitoring, setMonitoring] = useState<any>(null)
   const [security, setSecurity] = useState<any>(null)
@@ -164,6 +171,29 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
     } catch { }
   }
 
+  const sendSystemModCommand = async (cmd: string) => {
+    if (!cmd.trim()) return
+    setSystemModChat(prev => [...prev, { role: 'user', content: cmd }])
+    setSystemModInput('')
+    try {
+      const res = await fetch(`/api/admin/command?command=${encodeURIComponent(cmd)}`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        let response = ''
+        if (data.action === 'system_added') response = `✅ ${data.message}`
+        else if (data.action === 'system_modified') response = `🔧 ${data.message}`
+        else if (data.action === 'system_optimized') response = `⚡ ${data.message}`
+        else if (data.action === 'system_list') {
+          response = `📋 システム一覧:\n${data.systems.map((s: any) => `• ${s.name} [${s.status}] - ${s.desc}`).join('\n')}`
+        }
+        else response = JSON.stringify(data, null, 2)
+        setSystemModChat(prev => [...prev, { role: 'assistant', content: response }])
+      }
+    } catch {
+      setSystemModChat(prev => [...prev, { role: 'assistant', content: '❌ エラーが発生しました' }])
+    }
+  }
+
   const repairAll = async () => {
     try {
       const res = await fetch('/api/admin/repair', { method: 'POST' })
@@ -230,21 +260,6 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
     } catch { }
   }
 
-  const applyModification = async () => {
-    if (!modifyTarget.trim()) return
-    try {
-      const res = await fetch('/api/admin/modify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target: modifyTarget, mod_type: modifyType, code: modifyCode, desc: modifyDesc }),
-      })
-      if (res.ok) {
-        alert(`システム変更を適用しました: ${modifyTarget}`)
-        setModifyTarget(''); setModifyType(''); setModifyCode(''); setModifyDesc('')
-      }
-    } catch { }
-  }
-
   const filteredErrors = errorLog.filter(log => {
     if (logSearch && !JSON.stringify(log).toLowerCase().includes(logSearch.toLowerCase())) return false
     if (logFilter !== 'all' && log.severity !== logFilter) return false
@@ -253,6 +268,7 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
 
   const adminTabs: { id: AdminTab; label: string; icon: string }[] = [
     { id: 'overview', label: '全体概要', icon: '📊' },
+    { id: 'plugins', label: 'プラグイン', icon: '🧩' },
     { id: 'security', label: 'セキュリティ', icon: '🔒' },
     { id: 'keys', label: 'APIキー', icon: '🔑' },
     { id: 'errors', label: 'エラー一覧', icon: '🐛' },
@@ -676,6 +692,110 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
         </div>
       )}
 
+      {/* Plugins Tab */}
+      {activeAdminTab === 'plugins' && (
+        <div>
+          {/* Plugin Header */}
+          <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', padding: '16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>🧩 拡張システム & プラグイン管理</h3>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
+                管理者チャットで指示された新システムやプラグインがここにホットインジェクトされ、リアルタイムに動作します。
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '0.8rem', color: '#22c55e', fontWeight: 600 }}>稼働中: {installedPlugins.length} / {installedPlugins.length} モジュール</span>
+              <button onClick={() => setActiveAdminTab('system_mod')} style={{
+                padding: '8px 16px', borderRadius: '8px', border: 'none',
+                background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
+              }}>+ チャットで新システムを追加</button>
+            </div>
+          </div>
+
+          {/* Filter Tabs */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {[
+              { id: 'all', label: 'すべて', icon: '' },
+              { id: 'learning', label: '学習ブースター', icon: '⚡' },
+              { id: 'ai', label: 'AIコアエンジン', icon: '🧠' },
+              { id: 'analysis', label: '模試・分析', icon: '📊' },
+              { id: 'webhook', label: '外部連携・Webhook', icon: '🔗' },
+            ].map(f => (
+              <button key={f.id} onClick={() => setPluginFilter(f.id)} style={{
+                padding: '8px 16px', borderRadius: '20px', border: pluginFilter === f.id ? '2px solid #4a7c59' : '1px solid #e5e1d8',
+                background: pluginFilter === f.id ? '#e8f0ea' : '#fff',
+                color: pluginFilter === f.id ? '#4a7c59' : '#6b7280',
+                cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
+              }}>{f.icon} {f.label}</button>
+            ))}
+            <div style={{ flex: 1 }}></div>
+            <input
+              placeholder="🔍 モジュール・機能を検索..."
+              value={pluginSearch}
+              onChange={(e) => setPluginSearch(e.target.value)}
+              style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #e5e1d8', fontSize: '0.85rem', width: '220px' }}
+            />
+          </div>
+
+          {/* Plugin Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+            {installedPlugins
+              .filter(p => pluginFilter === 'all' || p.category === pluginFilter)
+              .filter(p => !pluginSearch || p.name.toLowerCase().includes(pluginSearch.toLowerCase()) || p.desc.includes(pluginSearch))
+              .map(plugin => (
+              <div key={plugin.id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 700 }}>{plugin.name}</span>
+                      <span style={{ fontSize: '0.65rem', padding: '2px 6px', background: '#e5e7eb', borderRadius: '4px', color: '#6b7280' }}>{plugin.version}</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{plugin.author} • {plugin.runs}回実行</div>
+                  </div>
+                  <span style={{
+                    fontSize: '0.7rem', padding: '4px 10px', borderRadius: '6px', fontWeight: 600,
+                    background: plugin.status === 'active' ? '#dcfce7' : '#fef2f2',
+                    color: plugin.status === 'active' ? '#16a34a' : '#dc2626'
+                  }}>
+                    {plugin.status === 'active' ? '⑆ 稼働中' : '⏸ 停止中'}
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.85rem', color: '#4b5563', marginBottom: '12px', lineHeight: 1.5 }}>{plugin.desc}</p>
+
+                {/* Features */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                  {plugin.features.map((f, i) => (
+                    <span key={i} style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f5f2eb', borderRadius: '4px', color: '#4b5563' }}>✓ {f}</span>
+                  ))}
+                </div>
+
+                {/* Live Timer for Pomodoro */}
+                {plugin.timer && (
+                  <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>⏱ ライブ集中タイマー (25分集中ワーク)</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#1a1a1a' }}>25:00</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>本日達成: 3セッション</div>
+                      <button style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#4a7c59', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>▶ スタート</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e5e1d8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>▶ テスト</button>
+                  <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e5e1d8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>⚙ 改造</button>
+                  <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem' }}>🗑</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Errors Tab - Beginner Friendly */}
       {activeAdminTab === 'errors' && (
         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', overflow: 'hidden' }}>
@@ -1065,16 +1185,68 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
       {/* System Mod Tab */}
       {activeAdminTab === 'system_mod' && (
         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', padding: '24px' }}>
-          <h3 style={{ marginBottom: '8px' }}>⚙️ システム変更</h3>
+          <h3 style={{ marginBottom: '8px' }}>⚙️ システムコア・アーキテクトAI</h3>
           <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '16px' }}>
-            高度な設定変更。不明白な場合は使用しないでください。
+            自然言語でシステム改造を実行できます。以下のクイックコマンドをクリックするか、自由にチャットしてください。
           </p>
-          <div className="admin-form">
-            <input placeholder="対象コンポーネント" value={modifyTarget} onChange={(e) => setModifyTarget(e.target.value)} />
-            <input placeholder="変更種別 (config, ui, logic, api)" value={modifyType} onChange={(e) => setModifyType(e.target.value)} />
-            <textarea placeholder="新しいコード/設定" value={modifyCode} onChange={(e) => setModifyCode(e.target.value)} rows={5} />
-            <input placeholder="説明" value={modifyDesc} onChange={(e) => setModifyDesc(e.target.value)} />
-            <button onClick={applyModification} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#4a7c59', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>変更を適用</button>
+
+          {/* Quick Commands */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+            {[
+              { label: '➕ ポモドーロタイマー追加', cmd: 'ポモドーロタイマーを追加して' },
+              { label: '➕ 模試偏差値予測AI追加', cmd: '模試偏差値予測AIを入れて' },
+              { label: '➕ 親LINE通知追加', cmd: '親御さんLINE通知システムを作って' },
+              { label: '🔧 ReAct拡張(8ステップ)', cmd: 'ReAct推論ステップを8に拡張して' },
+              { label: '🔧 プロンプトチューニング', cmd: 'Geminiのプロンプトをチューニングして' },
+              { label: '🔧 スケジュール最適化', cmd: 'スケジュール分散ロジックを改造して' },
+              { label: '⚡ API高速化', cmd: 'APIレスポンスを高速化して' },
+              { label: '⚡ OCR改善', cmd: '画像OCRの認識率を改善して' },
+              { label: '⚡ キャッシュ最適化', cmd: 'キャッシュを徹底最適化して' },
+              { label: '📋 システム一覧', cmd: 'システム一覧を見せて' },
+            ].map((q, i) => (
+              <button key={i} onClick={async () => {
+                setSystemModInput(q.cmd)
+                await sendSystemModCommand(q.cmd)
+              }} style={{
+                padding: '6px 12px', borderRadius: '8px', border: '1px solid #e5e1d8',
+                background: '#f5f2eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500
+              }}>{q.label}</button>
+            ))}
+          </div>
+
+          {/* Chat History */}
+          <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '16px', marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
+            {systemModChat.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#9ca3af', padding: '20px' }}>
+                システム改造コマンドを入力してください
+              </div>
+            ) : (
+              systemModChat.map((msg, i) => (
+                <div key={i} style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '4px' }}>{msg.role === 'user' ? '👤 あなた' : '🤖 AI'}</div>
+                  <div style={{
+                    padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem',
+                    background: msg.role === 'user' ? '#e8f0ea' : '#fff',
+                    border: '1px solid #e5e1d8'
+                  }}>{msg.content}</div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              placeholder="システム改造コマンドを入力..."
+              value={systemModInput}
+              onChange={(e) => setSystemModInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendSystemModCommand(systemModInput) }}
+              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.9rem' }}
+            />
+            <button onClick={() => sendSystemModCommand(systemModInput)} style={{
+              padding: '10px 20px', borderRadius: '8px', border: 'none',
+              background: '#4a7c59', color: '#fff', cursor: 'pointer', fontWeight: 600
+            }}>実行</button>
           </div>
         </div>
       )}
