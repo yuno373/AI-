@@ -107,12 +107,17 @@ async def background_monitor():
 async def startup():
     init_db()
     asyncio.create_task(background_monitor())
+    print(f"FRONTEND_DIR: {FRONTEND_DIR}")
+    print(f"Exists: {os.path.isdir(FRONTEND_DIR)}")
+    if os.path.isdir(FRONTEND_DIR):
+        print(f"Files: {os.listdir(FRONTEND_DIR)}")
 
 @app.get("/")
 async def root():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.isfile(index_path):
-        return FileResponse(index_path)
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "frontend", "dist"), os.path.join(os.getcwd(), "..", "frontend", "dist")]:
+        index = os.path.join(d, "index.html")
+        if os.path.isfile(index):
+            return FileResponse(index)
     return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -412,10 +417,12 @@ def _save_mistake_analysis(response: ChatResponse, db):
 async def serve_frontend(full_path: str):
     if full_path.startswith("api/"):
         return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
-    file_path = os.path.join(FRONTEND_DIR, full_path)
-    if os.path.isfile(file_path):
-        return FileResponse(file_path)
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.isfile(index_path):
-        return FileResponse(index_path)
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "frontend", "dist"), os.path.join(os.getcwd(), "..", "frontend", "dist")]:
+        file_path = os.path.join(d, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "frontend", "dist"), os.path.join(os.getcwd(), "..", "frontend", "dist")]:
+        index_path = os.path.join(d, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path)
     return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
