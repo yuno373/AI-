@@ -19,10 +19,12 @@ app = FastAPI(title="StudyAutonomous AI API", version="1.0.0")
 def find_frontend_dir():
     backend_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
+        os.path.join(backend_dir, "static"),
         os.path.join(backend_dir, "..", "frontend", "dist"),
-        os.path.join(backend_dir, "frontend", "dist"),
+        os.path.join(os.getcwd(), "static"),
         os.path.join(os.getcwd(), "frontend", "dist"),
         os.path.join(os.getcwd(), "..", "frontend", "dist"),
+        "/opt/render/project/src/backend/static",
         "/opt/render/project/src/frontend/dist",
     ]
     for path in candidates:
@@ -107,14 +109,10 @@ async def background_monitor():
 async def startup():
     init_db()
     asyncio.create_task(background_monitor())
-    print(f"FRONTEND_DIR: {FRONTEND_DIR}")
-    print(f"Exists: {os.path.isdir(FRONTEND_DIR)}")
-    if os.path.isdir(FRONTEND_DIR):
-        print(f"Files: {os.listdir(FRONTEND_DIR)}")
 
 @app.get("/")
 async def root():
-    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "frontend", "dist"), os.path.join(os.getcwd(), "..", "frontend", "dist")]:
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "backend", "static"), os.path.join(os.getcwd(), "static")]:
         index = os.path.join(d, "index.html")
         if os.path.isfile(index):
             return FileResponse(index)
@@ -417,11 +415,11 @@ def _save_mistake_analysis(response: ChatResponse, db):
 async def serve_frontend(full_path: str):
     if full_path.startswith("api/"):
         return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
-    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "frontend", "dist"), os.path.join(os.getcwd(), "..", "frontend", "dist")]:
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "backend", "static"), os.path.join(os.getcwd(), "static")]:
         file_path = os.path.join(d, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
-    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "frontend", "dist"), os.path.join(os.getcwd(), "..", "frontend", "dist")]:
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "backend", "static"), os.path.join(os.getcwd(), "static")]:
         index_path = os.path.join(d, "index.html")
         if os.path.isfile(index_path):
             return FileResponse(index_path)
