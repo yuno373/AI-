@@ -21,10 +21,11 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
   const [performance, setPerformance] = useState<any>(null)
   const [newKeyName, setNewKeyName] = useState('')
   const [newKeyValue, setNewKeyValue] = useState('')
+  const [guestCodes, setGuestCodes] = useState<any[]>([])
 
   const fetchData = useCallback(async () => {
     try {
-      const [statusRes, errorRes, logsRes, keysRes, secRes, monRes, analyticsRes, dbRes, configRes, perfRes] = await Promise.all([
+      const [statusRes, errorRes, logsRes, keysRes, secRes, monRes, analyticsRes, dbRes, configRes, perfRes, guestRes] = await Promise.all([
         fetch('/api/admin/status'),
         fetch('/api/admin/command?command=errors', { method: 'POST' }),
         fetch('/api/admin/logs'),
@@ -35,6 +36,7 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
         fetch('/api/admin/db'),
         fetch('/api/admin/config'),
         fetch('/api/admin/performance'),
+        fetch('/api/admin/guest/list'),
       ])
       if (statusRes.ok) setStatus(await statusRes.json())
       if (errorRes.ok) { const d = await errorRes.json(); setErrorLog(d.errors || []) }
@@ -46,6 +48,7 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
       if (dbRes.ok) setDbInfo(await dbRes.json())
       if (configRes.ok) setConfig(await configRes.json())
       if (perfRes.ok) setPerformance(await perfRes.json())
+      if (guestRes.ok) { const d = await guestRes.json(); setGuestCodes(d.codes || []) }
     } catch { }
   }, [])
 
@@ -63,21 +66,22 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
       if (res.ok) {
         const data = await res.json()
         let response = ''
-        if (data.action === 'system_added') response = `✅ システムを追加しました\n\n名前: ${data.name}\nメッセージ: ${data.message}`
-        else if (data.action === 'system_modified') response = `🔧 システムを変更しました\n\n対象: ${data.target}\n変更内容: ${data.change}\n結果: ${data.message}`
-        else if (data.action === 'system_optimized') response = `⚡ システムを最適化しました\n\n対象: ${data.target}\n変更内容: ${data.change}\n結果: ${data.message}`
+        if (data.action === 'dice') response = `🎲 サイコロ: ${data.result}`
+        else if (data.action === 'system_added') response = `✅ 追加完了\n\n名前: ${data.name}\n${data.message}`
+        else if (data.action === 'system_modified') response = `🔧 変更完了\n\n対象: ${data.target}\n変更内容: ${data.change}\n${data.message}`
+        else if (data.action === 'system_optimized') response = `⚡ 最適化完了\n\n対象: ${data.target}\n変更内容: ${data.change}\n${data.message}`
         else if (data.action === 'system_list') response = data.systems?.map((s: any) => `• ${s.name} [${s.status}] - ${s.desc}`).join('\n') || 'システムはありません'
         else if (data.action === 'error_logs') response = `${(data.errors || []).length}件のエラーが見つかりました`
         else if (data.action === 'repair_all') response = `修復完了: ${data.result?.repaired_count || 0}件`
-        else if (data.action === 'help') response = data.message || 'ヘルプ情報を表示しました'
+        else if (data.action === 'help') response = data.message || ''
         else if (data.action === 'response') response = data.message || ''
-        else if (data.action === 'unknown') response = `ℹ️ ${data.result || 'コマンドを処理しました'}`
+        else if (data.action === 'unknown') response = `${data.result || '処理しました'}`
         else if (data.result) response = JSON.stringify(data.result, null, 2)
         else response = JSON.stringify(data, null, 2)
         setSystemModChat(prev => [...prev, { role: 'assistant', content: response }])
       }
     } catch {
-      setSystemModChat(prev => [...prev, { role: 'assistant', content: '❌ エラーが発生しました。もう一度お試しください。' }])
+      setSystemModChat(prev => [...prev, { role: 'assistant', content: '❌ エラーが発生しました' }])
     }
     fetchData()
   }
@@ -141,9 +145,24 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
     } catch { }
   }
 
+  const generateGuestCode = async () => {
+    try {
+      const res = await fetch('/api/admin/guest/generate', { method: 'POST' })
+      if (res.ok) { const d = await res.json(); alert(`コード: ${d.code}\n有効期限: ${d.expires_in}`); fetchData() }
+    } catch { }
+  }
+
+  const revokeGuestCode = async (code: string) => {
+    try {
+      const res = await fetch(`/api/admin/guest/revoke?code=${code}`, { method: 'POST' })
+      if (res.ok) { alert('ブロックしました'); fetchData() }
+    } catch { }
+  }
+
   const menuItems = [
     { id: 'dashboard', icon: '📊', label: 'ダッシュボード' },
-    { id: 'architect', icon: '🤖', label: 'アーキテクトAI' },
+    { id: 'architect', icon: '⚙️', label: 'システム追加' },
+    { id: 'guest', icon: '🎲', label: 'ゲストアクセス' },
     { id: 'analytics', icon: '📈', label: '学習分析' },
     { id: 'plugins', icon: '🧩', label: 'プラグイン管理' },
     { id: 'errors', icon: '🐛', label: 'エラー一覧', badge: errorLog.length },
@@ -223,8 +242,8 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
         return (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.3rem', marginBottom: '4px' }}>🤖 システムコア・アーキテクトAI</h2>
-              <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>自然言語で話しかけるだけでシステムを追加・変更できます</p>
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '4px' }}>⚙️ システム追加</h2>
+              <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>テキストで入力してシステムを追加・変更できます</p>
             </div>
 
             {/* クイックアクション */}
@@ -251,20 +270,20 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
               {systemModChat.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '12px' }}>💬</div>
-                  <div style={{ fontSize: '1rem', marginBottom: '8px' }}>何をお手伝いしましょうか？</div>
-                  <div style={{ fontSize: '0.85rem' }}>例: 「ポモドーロタイマーを追加して」「偏差値予測を入れて」</div>
+                  <div style={{ fontSize: '1rem', marginBottom: '8px' }}>追加したいシステムを入力してください</div>
+                  <div style={{ fontSize: '0.85rem' }}>例: 「ポモドーロタイマーを追加して」「習慣トラッカーを入れて」</div>
                 </div>
               ) : (
                 systemModChat.map((msg, i) => (
                   <div key={i} style={{ marginBottom: '16px' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                      <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: msg.role === 'user' ? '#3b82f6' : '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', flexShrink: 0 }}>
-                        {msg.role === 'user' ? '👤' : '🤖'}
+                      <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: msg.role === 'user' ? '#3b82f6' : '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', flexShrink: 0 }}>
+                        {msg.role === 'user' ? '👤' : '✓'}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: '4px' }}>{msg.role === 'user' ? 'あなた' : 'アーキテクトAI'}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: '4px' }}>{msg.role === 'user' ? 'あなた' : 'システム'}</div>
                         <div style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', whiteSpace: 'pre-wrap',
-                          background: msg.role === 'user' ? '#e8f0ea' : '#f5f3ff', border: '1px solid #e5e1d8'
+                          background: msg.role === 'user' ? '#e8f0ea' : '#f9fafb', border: '1px solid #e5e1d8'
                         }}>{msg.content}</div>
                       </div>
                     </div>
@@ -281,8 +300,46 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
                 style={{ flex: 1, padding: '14px 18px', borderRadius: '10px', border: '1px solid #d1d5db', fontSize: '0.95rem' }} />
               <button onClick={() => sendCommand(systemModInput)} style={{
                 padding: '14px 28px', borderRadius: '10px', border: 'none',
-                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem'
+                background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem'
               }}>送信</button>
+            </div>
+          </div>
+        )
+
+      case 'guest':
+        return (
+          <div>
+            <h2 style={{ marginBottom: '20px', fontSize: '1.3rem' }}>🎲 ゲストアクセス</h2>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '20px' }}>6桁の数字コードを生成して、1時間だけ誰でもサイコロを使えます</p>
+
+            {/* コード生成 */}
+            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', padding: '20px', marginBottom: '20px' }}>
+              <h3 style={{ marginBottom: '12px', fontSize: '1rem' }}>新しいコードを生成</h3>
+              <button onClick={generateGuestCode} style={{
+                padding: '12px 24px', borderRadius: '8px', border: 'none',
+                background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem'
+              }}>コードを生成</button>
+            </div>
+
+            {/* アクティブなコード一覧 */}
+            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', padding: '20px' }}>
+              <h3 style={{ marginBottom: '16px', fontSize: '1rem' }}>有効なコード</h3>
+              {guestCodes.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#9ca3af', padding: '30px' }}>コードがありません</div>
+              ) : (
+                guestCodes.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', marginBottom: '12px', borderRadius: '8px', background: '#f9fafb', border: '1px solid #e5e7eb' }}>
+                    <div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.2em', color: '#1a1a1a' }}>{c.code}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '4px' }}>使用回数: {c.used_count}回 | 期限: {c.expires_at?.split('T')[1]?.split('.')[0]}</div>
+                    </div>
+                    <button onClick={() => revokeGuestCode(c.code)} style={{
+                      padding: '8px 16px', borderRadius: '6px', border: '1px solid #fecaca',
+                      background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem'
+                    }}>ブロック</button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )

@@ -388,6 +388,57 @@ class SecurityGuard:
 
 
 # ============================================
+# ゲストアクセス管理
+# ============================================
+class GuestAccess:
+    """6桁の数字コードで1時間限定のアクセスを許可"""
+    
+    def __init__(self):
+        self.active_codes: Dict[str, Dict[str, Any]] = {}
+    
+    def generate_code(self) -> Dict[str, Any]:
+        import random
+        code = f"{random.randint(100000, 999999)}"
+        self.active_codes[code] = {
+            "created_at": datetime.now().isoformat(),
+            "expires_at": (datetime.now() + timedelta(hours=1)).isoformat(),
+            "used_count": 0,
+            "active": True
+        }
+        return {"code": code, "expires_in": "1時間", "message": f"コード {code} を生成しました"}
+    
+    def validate_code(self, code: str) -> Dict[str, Any]:
+        if code not in self.active_codes:
+            return {"valid": False, "message": "無効なコードです"}
+        entry = self.active_codes[code]
+        if not entry["active"]:
+            return {"valid": False, "message": "このコードは使用済みです"}
+        if datetime.now() > datetime.fromisoformat(entry["expires_at"]):
+            entry["active"] = False
+            return {"valid": False, "message": "このコードは期限切れです"}
+        entry["used_count"] += 1
+        return {
+            "valid": True,
+            "message": "アクセスが許可されました",
+            "remaining": entry["expires_at"],
+            "used_count": entry["used_count"]
+        }
+    
+    def revoke_code(self, code: str) -> bool:
+        if code in self.active_codes:
+            self.active_codes[code]["active"] = False
+            return True
+        return False
+    
+    def get_active_codes(self) -> List[Dict[str, Any]]:
+        result = []
+        for code, info in self.active_codes.items():
+            if info["active"] and datetime.now() < datetime.fromisoformat(info["expires_at"]):
+                result.append({"code": code, "expires_at": info["expires_at"], "used_count": info["used_count"]})
+        return result
+
+
+# ============================================
 # 管理者モード
 # ============================================
 class AdminMode:
@@ -400,6 +451,7 @@ class AdminMode:
         self.repair_engine = SelfRepairEngine(self.diagnostics)
         self.system_modifier = SystemModifier()
         self.api_key_manager = APIKeyManager()
+        self.guest_access = GuestAccess()
         self.system_start_time = datetime.now()
 
     def authenticate(self, password: str) -> Dict[str, Any]:
@@ -460,6 +512,11 @@ class AdminMode:
             return {"action": "error_logs", "errors": self.get_error_logs()}
         elif cmd in ["reset"]:
             return {"action": "reset", "result": self.reset_system()}
+        # サイコロ
+        elif "サイコロ" in cmd or "サイコロ" in cmd or "dice" in cmd or "さいころ" in cmd:
+            import random
+            dice = random.randint(1, 6)
+            return {"action": "dice", "result": dice, "message": f"🎲 {dice} でした"}
         # 自然言語パターン - システム追加
         elif "ポモドーロ" in cmd or "pomodoro" in cmd:
             return self._add_pomodoro()
@@ -486,7 +543,7 @@ class AdminMode:
         elif "ログ" in cmd and ("確認" in cmd or "check" in cmd):
             return {"action": "system_logs", "logs": self._get_system_logs()}
         # 新規システム作成パターン
-        elif " TIMER" in cmd or "タイマー" in cmd or "計測" in cmd:
+        elif "タイマー" in cmd or "計測" in cmd:
             return self._add_custom_system("Timer", "カスタムタイマー")
         elif "リマインダー" in cmd or "提醒" in cmd or "通知リマインダー" in cmd:
             return self._add_custom_system("Reminder", "リマインダーシステム")
@@ -552,11 +609,11 @@ class AdminMode:
             return {"action": "clear_logs", "result": "Logs cleared"}
         # 汎用応答
         elif "帮助" in cmd or "help" in cmd or "ヘルプ" in cmd:
-            return {"action": "help", "message": "使い方：\n• システム追加: 「〇〇を追加して」\n• 変更: 「〇〇を変更して」\n• 最適化: 「〇〇を最適化して」\n• 一覧: 「システム一覧」\n• 診断: 「診断」\n• 修復: 「修復」"}
+            return {"action": "help", "message": "使い方：\n• サイコロ: 「サイコロ」\n• システム追加: 「〇〇を追加して」\n• 変更: 「〇〇を変更して」\n• 最適化: 「〇〇を最適化して」\n• 一覧: 「システム一覧」\n• 診断: 「診断」\n• 修復: 「修復」"}
         elif "ありがとう" in cmd or "thanks" in cmd:
-            return {"action": "response", "message": "どういたしました！他に何かお手伝いできますか？"}
+            return {"action": "response", "message": "どういたしました！他に何かありますか？"}
         elif "やあ" in cmd or "こんにちは" in cmd or "hello" in cmd:
-            return {"action": "response", "message": "こんにちは！何をお手伝いしましょうか？"}
+            return {"action": "response", "message": "こんにちは！何をしますか？"}
         return {"action": "unknown", "result": f"コマンドを認識しました: {command}"}
         elif "memory" in cmd or "heap" in cmd:
             return self._inject_memory_error()

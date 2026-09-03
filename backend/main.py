@@ -459,6 +459,38 @@ async def create_backup():
         return {"success": True, "backup": backup_name}
     return {"success": False, "message": "データベースファイルが見つかりません"}
 
+@app.post("/api/admin/guest/generate")
+async def generate_guest_code():
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    return admin_mode.guest_access.generate_code()
+
+@app.get("/api/admin/guest/list")
+async def list_guest_codes():
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    return {"codes": admin_mode.guest_access.get_active_codes()}
+
+@app.post("/api/admin/guest/revoke")
+async def revoke_guest_code(code: str):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    success = admin_mode.guest_access.revoke_code(code)
+    return {"success": success, "message": "ブロックしました" if success else "コードが見つかりません"}
+
+@app.post("/api/guest/validate")
+async def validate_guest_code(code: str):
+    return admin_mode.guest_access.validate_code(code)
+
+@app.get("/api/guest/dice")
+async def guest_dice(code: str):
+    validation = admin_mode.guest_access.validate_code(code)
+    if not validation["valid"]:
+        raise HTTPException(status_code=403, detail=validation["message"])
+    import random
+    dice = random.randint(1, 6)
+    return {"dice": dice, "remaining": validation["remaining"]}
+
 @app.get("/api/admin/performance")
 async def get_performance():
     if not admin_mode.authenticated:
