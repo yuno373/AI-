@@ -415,11 +415,11 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
               {[
-                { name: '学習用・高精度サイコロ&意思決定エンジン', version: 'v1.0.0', desc: '学習項目のランダム選択や、判断に迷った際の意思決定をサポート', features: ['乱数生成', 'ランダム抽出', 'リフレッシュルーレット'], runs: 3, category: 'learning' },
-                { name: '25分集中・超回復ポモドーロタイマー', version: 'v2.1.0', desc: '25分間の学習と5分間のリフレッシュを自動管理', features: ['カウントダウン', 'タスク消化連動', '音声シグナル'], runs: 14, timer: true, category: 'learning' },
-                { name: 'Gemini AI コアエンジン', version: 'v3.0.0', desc: 'Gemini APIを活用した高度な自然言語処理・推論エンジン', features: ['ReAct推論', 'マルチモーダル', 'プロンプト最適化'], runs: 156, category: 'ai' },
-                { name: '模試偏差値予測AI', version: 'v1.0.0', desc: '過去の模試スコアから将来の偏差値を予測するAIエンジン', features: ['トレンド分析', '偏差値予測', '弱点特定'], runs: 8, category: 'analysis' },
-                { name: '親御さんLINE通知システム', version: 'v1.0.0', desc: '学習状況を保護者にLINEで通知するシステム', features: ['学習完了通知', '成績レポート', 'スケジュール共有'], runs: 22, category: 'webhook' },
+                { name: '学習用・高精度サイコロ&意思決定エンジン', version: 'v1.0.0', desc: '学習項目のランダム選択や、判断に迷った際の意思決定をサポート', features: ['乱数生成', 'ランダム抽出', 'リフレッシュルーレット'], runs: 3, category: 'learning', cmd: 'サイコロ' },
+                { name: '25分集中・超回復ポモドーロタイマー', version: 'v2.1.0', desc: '25分間の学習と5分間のリフレッシュを自動管理', features: ['カウントダウン', 'タスク消化連動', '音声シグナル'], runs: 14, timer: true, category: 'learning', cmd: 'ポモドーロ' },
+                { name: 'Gemini AI コアエンジン', version: 'v3.0.0', desc: 'Gemini APIを活用した高度な自然言語処理・推論エンジン', features: ['ReAct推論', 'マルチモーダル', 'プロンプト最適化'], runs: 156, category: 'ai', cmd: 'プロンプト' },
+                { name: '模試偏差値予測AI', version: 'v1.0.0', desc: '過去の模試スコアから将来の偏差値を予測するAIエンジン', features: ['トレンド分析', '偏差値予測', '弱点特定'], runs: 8, category: 'analysis', cmd: '偏差値' },
+                { name: '親御さんLINE通知システム', version: 'v1.0.0', desc: '学習状況を保護者にLINEで通知するシステム', features: ['学習完了通知', '成績レポート', 'スケジュール共有'], runs: 22, category: 'webhook', cmd: 'LINE通知' },
               ].map((plugin, i) => (
                 <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e1d8', padding: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -444,13 +444,13 @@ const AdminMode: React.FC<AdminProps> = ({ onBack }) => {
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>⏱ ライブ集中タイマー</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>25:00</div>
                       </div>
-                      <button style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#4a7c59', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>▶ スタート</button>
+                      <button onClick={() => sendCommand(plugin.cmd)} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#4a7c59', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>▶ スタート</button>
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e5e1d8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>▶ テスト</button>
-                    <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e5e1d8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>⚙ 改造</button>
-                    <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem' }}>🗑</button>
+                    <button onClick={() => sendCommand(plugin.cmd)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e5e1d8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>▶ テスト</button>
+                    <button onClick={() => sendCommand(`${plugin.cmd}を改造して`)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e5e1d8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>⚙ 改造</button>
+                    <button onClick={() => { if(confirm('削除しますか？')) sendCommand(`${plugin.cmd}を削除して`) }} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: '0.8rem' }}>🗑</button>
                   </div>
                 </div>
               ))}
