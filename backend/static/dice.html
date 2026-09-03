@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サイコロ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { margin-bottom: 20px; color: #333; }
+        .dice-container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 30px; }
+        .dice { width: 100px; height: 100px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 48px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.3s; }
+        .dice.rolling { animation: roll 0.5s ease-out; }
+        @keyframes roll { 0% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(90deg) scale(1.1); } 50% { transform: rotate(180deg) scale(1); } 75% { transform: rotate(270deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .roll-btn { background: #4CAF50; color: white; }
+        .roll-btn:hover { background: #45a049; }
+        .reset-btn { background: #9e9e9e; color: white; }
+        .reset-btn:hover { background: #757575; }
+        .result { margin-top: 20px; font-size: 24px; color: #333; }
+        .history { margin-top: 20px; width: 100%; max-width: 500px; }
+        .history h3 { margin-bottom: 10px; color: #666; }
+        .history-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .history-item { background: white; padding: 8px 12px; border-radius: 6px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <h1>🎲 サイコロ</h1>
+    
+    <div class="controls">
+        <button class="roll-btn" onclick="rollDice()">振る</button>
+        <button class="reset-btn" onclick="resetHistory()">履歴クリア</button>
+    </div>
+
+    <div class="dice-container" id="diceContainer">
+        <div class="dice" id="dice1">⚀</div>
+    </div>
+
+    <div class="result" id="result"></div>
+
+    <div class="history">
+        <h3>📊 直近の履歴</h3>
+        <div class="history-list" id="historyList"></div>
+    </div>
+
+    <script>
+        const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        const diceNumbers = ['1', '2', '3', '4', '5', '6'];
+        let history = [];
+        let isRolling = false;
+
+        function rollDice() {
+            if (isRolling) return;
+            isRolling = true;
+
+            const dice = document.getElementById('dice1');
+            const result = document.getElementById('result');
+            
+            dice.classList.add('rolling');
+            result.textContent = '...',
+            
+            let count = 0;
+            const interval = setInterval(() => {
+                dice.textContent = diceFaces[Math.floor(Math.random() * 6)];
+                count++;
+                if (count > 10) {
+                    clearInterval(interval);
+                    const finalNumber = Math.floor(Math.random() * 6);
+                    dice.textContent = diceFaces[finalNumber];
+                    dice.classList.remove('rolling');
+                    result.textContent = `→ ${diceNumbers[finalNumber]}`;
+                    history.unshift(diceNumbers[finalNumber]);
+                    if (history.length > 20) history.pop();
+                    updateHistory();
+                    isRolling = false;
+                }
+            }, 80);
+        }
+
+        function updateHistory() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = history.map(h => `<div class="history-item">${h}</div>`).join('');
+        }
+
+        function resetHistory() {
+            history = [];
+            updateHistory();
+            document.getElementById('result').textContent = '';
+            document.getElementById('dice1').textContent = '⚀';
+        }
+
+        // URLパラメータでゲストコード検証
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+            fetch(`/api/guest/validate?code=${code}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.valid) {
+                        alert(data.message);
+                    }
+                })
+                .catch(() => {});
+        }
+    </script>
+</body>
+</html>

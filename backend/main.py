@@ -118,6 +118,14 @@ async def root():
             return FileResponse(index)
     return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
 
+@app.get("/dice")
+async def dice_page():
+    for d in [FRONTEND_DIR, os.path.join(os.getcwd(), "backend", "static"), os.path.join(os.getcwd(), "static")]:
+        dice_path = os.path.join(d, "dice.html")
+        if os.path.isfile(dice_path):
+            return FileResponse(dice_path)
+    return {"message": "Dice page not found"}
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(message: ChatMessage, db=Depends(get_db)):
     try:
