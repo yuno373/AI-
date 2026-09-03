@@ -388,16 +388,20 @@ def _save_mistake_analysis(response: ChatResponse, db):
 # ============================================
 # 静的ファイル配信（Renderデプロイ用）
 # ============================================
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
 
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """フロントエンドの静的ファイルを配信"""
+    if full_path.startswith("api/"):
+        return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
+    
     file_path = os.path.join(FRONTEND_DIR, full_path)
     if os.path.isfile(file_path):
         return FileResponse(file_path)
-    # SPA用：index.htmlを返す
+    
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.isfile(index_path):
         return FileResponse(index_path)
+    
     return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
