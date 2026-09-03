@@ -615,56 +615,6 @@ class AdminMode:
         elif "やあ" in cmd or "こんにちは" in cmd or "hello" in cmd:
             return {"action": "response", "message": "こんにちは！何をしますか？"}
         return {"action": "unknown", "result": f"コマンドを認識しました: {command}"}
-        elif "memory" in cmd or "heap" in cmd:
-            return self._inject_memory_error()
-        elif "auth" in cmd or "token" in cmd:
-            return self._inject_auth_error()
-        elif "rate" in cmd:
-            return self._inject_rate_limit_error()
-        elif "disk" in cmd or "capacity" in cmd:
-            return self._inject_disk_error()
-        elif "cpu" in cmd:
-            return self._inject_cpu_error()
-        elif "ocr" in cmd:
-            return self._inject_ocr_error()
-        elif "timeout" in cmd:
-            return self._inject_timeout_error()
-        elif "component status" in cmd:
-            return {"action": "component_status", "components": self._get_component_list()}
-        elif "database status" in cmd:
-            return {"action": "database_status", "tables": 5, "records": len(self.diagnostics.error_log) + 10}
-        elif "performance" in cmd:
-            return {"action": "performance", "apiLatency": "185ms", "memory": "128MB", "cpu": "12%"}
-        elif "system log" in cmd:
-            return {"action": "system_logs", "logs": self._get_system_logs()}
-        elif "clear logs" in cmd:
-            self.diagnostics.error_log.clear()
-            return {"action": "clear_logs", "result": "Logs cleared"}
-        elif "ポモドーロ" in cmd or "pomodoro" in cmd:
-            return self._add_pomodoro()
-        elif "偏差値" in cmd or "模試" in cmd or "predict" in cmd:
-            return self._add_score_predict()
-        elif "line通知" in cmd or "parent" in cmd or "保護者" in cmd:
-            return self._add_line_notification()
-        elif "react" in cmd and ("拡張" in cmd or "expand" in cmd or "8" in cmd):
-            return self._expand_react()
-        elif "プロンプト" in cmd or "prompt" in cmd:
-            return self._tune_prompt()
-        elif "スケジュール" in cmd and ("分散" in cmd or "最適" in cmd):
-            return self._optimize_schedule()
-        elif "api" in cmd and ("高速" in cmd or "speed" in cmd or "fast" in cmd):
-            return self._optimize_api()
-        elif "ocr" in cmd and ("認識" in cmd or "accuracy" in cmd or "改善" in cmd):
-            return self._optimize_ocr()
-        elif "キャッシュ" in cmd or "cache" in cmd:
-            return self._optimize_cache()
-        elif "システム一覧" in cmd or "list systems" in cmd:
-            return self._list_systems()
-        elif "ステップ" in cmd and ("増" in cmd or "追加" in cmd or "add" in cmd):
-            return self._add_reasoning_step()
-        elif "ログ" in cmd and ("確認" in cmd or "check" in cmd):
-            return {"action": "system_logs", "logs": self._get_system_logs()}
-        return {"action": "unknown", "result": "Unknown command"}
 
     def _add_pomodoro(self):
         code = '''
