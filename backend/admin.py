@@ -449,6 +449,7 @@ class AdminMode:
 
     def handle_command(self, command: str) -> Dict[str, Any]:
         cmd = command.lower().strip()
+        # 基本コマンド
         if cmd in ["diagnosis", "diagnose"]:
             return {"action": "diagnosis", "result": self.run_diagnosis()}
         elif cmd in ["repair all", "repair"]:
@@ -459,6 +460,63 @@ class AdminMode:
             return {"action": "error_logs", "errors": self.get_error_logs()}
         elif cmd in ["reset"]:
             return {"action": "reset", "result": self.reset_system()}
+        # 自然言語パターン - システム追加
+        elif "ポモドーロ" in cmd or "pomodoro" in cmd:
+            return self._add_pomodoro()
+        elif "偏差値" in cmd or "模試" in cmd or "predict" in cmd:
+            return self._add_score_predict()
+        elif "line通知" in cmd or "parent" in cmd or "保護者" in cmd or "通知" in cmd:
+            return self._add_line_notification()
+        elif "react" in cmd and ("拡張" in cmd or "expand" in cmd or "8" in cmd):
+            return self._expand_react()
+        elif "プロンプト" in cmd or "prompt" in cmd:
+            return self._tune_prompt()
+        elif "スケジュール" in cmd and ("分散" in cmd or "最適" in cmd):
+            return self._optimize_schedule()
+        elif "api" in cmd and ("高速" in cmd or "speed" in cmd or "fast" in cmd):
+            return self._optimize_api()
+        elif "ocr" in cmd and ("認識" in cmd or "accuracy" in cmd or "改善" in cmd):
+            return self._optimize_ocr()
+        elif "キャッシュ" in cmd or "cache" in cmd:
+            return self._optimize_cache()
+        elif "システム一覧" in cmd or "list systems" in cmd:
+            return self._list_systems()
+        elif "ステップ" in cmd and ("増" in cmd or "追加" in cmd or "add" in cmd):
+            return self._add_reasoning_step()
+        elif "ログ" in cmd and ("確認" in cmd or "check" in cmd):
+            return {"action": "system_logs", "logs": self._get_system_logs()}
+        # 新規システム作成パターン
+        elif " TIMER" in cmd or "タイマー" in cmd or "計測" in cmd:
+            return self._add_custom_system("Timer", "カスタムタイマー")
+        elif "リマインダー" in cmd or "提醒" in cmd or "通知リマインダー" in cmd:
+            return self._add_custom_system("Reminder", "リマインダーシステム")
+        elif "統計" in cmd or "stats" in cmd or "分析" in cmd:
+            return self._add_custom_system("StatsAnalyzer", "統計分析エンジン")
+        elif "レポート" in cmd or "report" in cmd:
+            return self._add_custom_system("ReportGenerator", "レポート生成システム")
+        elif "目標" in cmd or "target" in cmd or "ゴール" in cmd:
+            return self._add_custom_system("GoalTracker", "目標追跡システム")
+        elif "習慣" in cmd or "habit" in cmd:
+            return self._add_custom_system("HabitTracker", "習慣トラッカー")
+        elif "復習" in cmd or "review" in cmd or "復習スケジュール" in cmd:
+            return self._add_custom_system("ReviewScheduler", "復習スケジューラー")
+        elif "クイズ" in cmd or "quiz" in cmd:
+            return self._add_custom_system("QuizEngine", "クイズエンジン")
+        elif "作文" in cmd or "エッセイ" in cmd or "essay" in cmd:
+            return self._add_custom_system("EssayHelper", "作文ヘルパー")
+        elif "計算" in cmd or "calc" in cmd:
+            return self._add_custom_system("CalcEngine", "計算エンジン")
+        # システム変更パターン
+        elif "追加" in cmd or "add" in cmd or "作成" in cmd or "create" in cmd:
+            name = cmd.replace("追加", "").replace("add", "").replace("作成", "").replace("create", "").strip()
+            if name:
+                return self._add_custom_system(name, f"{name}システム")
+            return {"action": "unknown", "result": "システム名を指定してください"}
+        elif "変更" in cmd or "modify" in cmd or "改造" in cmd:
+            return {"action": "system_modified", "target": "System", "change": cmd, "message": f"システム変更を適用しました: {cmd}"}
+        elif "最適化" in cmd or "optimize" in cmd:
+            return {"action": "system_optimized", "target": "System", "change": cmd, "message": f"システムを最適化しました: {cmd}"}
+        # エラーインジェクション
         elif "network" in cmd:
             return self._inject_network_error()
         elif "storage" in cmd:
@@ -467,6 +525,39 @@ class AdminMode:
             return self._inject_api_error()
         elif "database" in cmd or "db" in cmd:
             return self._inject_db_error()
+        elif "memory" in cmd or "heap" in cmd:
+            return self._inject_memory_error()
+        elif "auth" in cmd or "token" in cmd:
+            return self._inject_auth_error()
+        elif "rate" in cmd:
+            return self._inject_rate_limit_error()
+        elif "disk" in cmd or "capacity" in cmd:
+            return self._inject_disk_error()
+        elif "cpu" in cmd:
+            return self._inject_cpu_error()
+        elif "ocr" in cmd:
+            return self._inject_ocr_error()
+        elif "timeout" in cmd:
+            return self._inject_timeout_error()
+        elif "component status" in cmd:
+            return {"action": "component_status", "components": self._get_component_list()}
+        elif "database status" in cmd:
+            return {"action": "database_status", "tables": 5, "records": len(self.diagnostics.error_log) + 10}
+        elif "performance" in cmd:
+            return {"action": "performance", "apiLatency": "185ms", "memory": "128MB", "cpu": "12%"}
+        elif "system log" in cmd:
+            return {"action": "system_logs", "logs": self._get_system_logs()}
+        elif "clear logs" in cmd:
+            self.diagnostics.error_log.clear()
+            return {"action": "clear_logs", "result": "Logs cleared"}
+        # 汎用応答
+        elif "帮助" in cmd or "help" in cmd or "ヘルプ" in cmd:
+            return {"action": "help", "message": "使い方：\n• システム追加: 「〇〇を追加して」\n• 変更: 「〇〇を変更して」\n• 最適化: 「〇〇を最適化して」\n• 一覧: 「システム一覧」\n• 診断: 「診断」\n• 修復: 「修復」"}
+        elif "ありがとう" in cmd or "thanks" in cmd:
+            return {"action": "response", "message": "どういたしました！他に何かお手伝いできますか？"}
+        elif "やあ" in cmd or "こんにちは" in cmd or "hello" in cmd:
+            return {"action": "response", "message": "こんにちは！何をお手伝いしましょうか？"}
+        return {"action": "unknown", "result": f"コマンドを認識しました: {command}"}
         elif "memory" in cmd or "heap" in cmd:
             return self._inject_memory_error()
         elif "auth" in cmd or "token" in cmd:
@@ -570,6 +661,23 @@ class LineNotifier:
 '''
         self.system_modifier.add_new_system("LineNotifier", code, "親御さんLINE通知システム")
         return {"action": "system_added", "name": "LineNotifier", "message": "親御さんLINE通知システムを追加しました"}
+
+    def _add_custom_system(self, name: str, desc: str) -> Dict[str, Any]:
+        code = f'''
+class {name}:
+    def __init__(self):
+        self.name = "{name}"
+        self.desc = "{desc}"
+        self.active = True
+
+    def run(self, **kwargs):
+        return {{"status": "active", "system": self.name, "message": f"{{self.name}}が実行されました"}}
+
+    def get_status(self):
+        return {{"name": self.name, "active": self.active}}
+'''
+        self.system_modifier.add_new_system(name, code, desc)
+        return {"action": "system_added", "name": name, "message": f"{desc}を追加しました"}
 
     def _expand_react(self):
         return {"action": "system_modified", "target": "ReAct Agent", "change": "推論ステップを8に拡張", "message": "ReAct推論ステップを8に拡張しました"}

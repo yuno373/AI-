@@ -372,6 +372,123 @@ async def unblock_key(index: int):
 async def get_modes():
     return {"modes": get_available_modes(), "display_names": get_mode_display_names()}
 
+@app.get("/api/admin/analytics")
+async def get_analytics(db=Depends(get_db)):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    flashcards = db.query(Flashcard).all()
+    mistakes = db.query(MistakeRecord).all()
+    tasks = db.query(ScheduleTask).all()
+    submissions = db.query(Submission).all()
+    return {
+        "flashcards": {"total": len(flashcards), "by_subject": {}},
+        "mistakes": {"total": len(mistakes), "by_category": {}},
+        "tasks": {"total": len(tasks), "completed": len([t for t in tasks if t.status == "completed"]), "pending": len([t for t in tasks if t.status != "completed"])},
+        "submissions": {"total": len(submissions), "by_type": {}},
+    }
+
+@app.get("/api/admin/db")
+async def get_db_info(db=Depends(get_db)):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    return {
+        "tables": ["flashcards", "mistake_records", "schedule_tasks", "submissions", "error_logs", "chat_messages"],
+        "counts": {
+            "flashcards": db.query(Flashcard).count(),
+            "mistakes": db.query(MistakeRecord).count(),
+            "tasks": db.query(ScheduleTask).count(),
+            "submissions": db.query(Submission).count(),
+            "errors": db.query(ErrorLog).count(),
+        }
+    }
+
+@app.post("/api/admin/db/clear")
+async def clear_db(table: str, db=Depends(get_db)):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    model_map = {"flashcards": Flashcard, "mistakes": MistakeRecord, "tasks": ScheduleTask, "submissions": Submission, "errors": ErrorLog}
+    if table not in model_map:
+        raise HTTPException(status_code=400, detail="Invalid table name")
+    count = db.query(model_map[table]).count()
+    db.query(model_map[table]).delete()
+    db.commit()
+    return {"success": True, "deleted": count, "table": table}
+
+@app.get("/api/admin/config")
+async def get_config():
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    return {
+        "model": settings.MODEL_NAME,
+        "temperature": settings.TEMPERATURE,
+        "max_tokens": settings.MAX_TOKENS,
+        "daily_limit": settings.DAILY_LIMIT,
+        "cors_origins": settings.CORS_ORIGINS,
+    }
+
+@app.post("/api/admin/config")
+async def update_config(key: str, value: str):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    if hasattr(settings, key):
+        setattr(settings, key, type(getattr(settings, key))(value))
+        return {"success": True, "message": f"{key}を{value}に更新しました"}
+    return {"success": False, "message": "無効な設定キーです"}
+
+@app.get("/api/admin/export")
+async def export_data(db=Depends(get_db)):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    return {
+        "flashcards": [fc.to_dict() for fc in db.query(Flashcard).all()],
+        "mistakes": [m.to_dict() for m in db.query(MistakeRecord).all()],
+        "tasks": [t.to_dict() for t in db.query(ScheduleTask).all()],
+        "submissions": [s.to_dict() for s in db.query(Submission).all()],
+    }
+
+@app.post("/api/admin/backup")
+async def create_backup():
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    import shutil
+    import time
+    backup_name = f"backup_{int(time.time())}.db"
+    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+    if os.path.exists(db_path):
+        shutil.copy2(db_path, f"backups/{backup_name}")
+        return {"success": True, "backup": backup_name}
+    return {"success": False, "message": "データベースファイルが見つかりません"}
+
+@app.get("/api/admin/performance")
+async def get_performance():
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    import psutil
+    try:
+        cpu = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory().percent
+        disk = psutil.disk_usage('/').percent
+    except:
+        cpu, memory, disk = 0, 0, 0
+    return {
+        "cpu": cpu, "memory": memory, "disk": disk,
+        "repair_history": admin_mode.repair_engine.repair_history[-10:],
+        "security_events": len(SecurityGuard.get_security_log(100)),
+    }
+
+@app.get("/api/admin/logs")
+async def get_logs(limit: int = 100):
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    logs = SecurityGuard.get_security_log(limit)
+    return {"logs": logs, "total": len(logs)}
+
+@app.get("/api/admin/system_status")
+async def get_system_status():
+    if not admin_mode.authenticated:
+        raise HTTPException(status_code=403, detail="管理者モードに認証してください")
+    return admin_mode.get_status()
+
 @app.get("/api/system_status", response_model=SystemStatus)
 async def system_status():
     error_logs = _get_error_logs(db)
