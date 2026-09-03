@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from typing import Optional, List
 import asyncio
 import os
+import traceback
 
 from config import settings
 from models import init_db, get_db, Flashcard, MistakeRecord, ScheduleTask, Submission, ErrorLog, ChatMessage, ChatResponse, FlashcardCreate, FlashcardResponse, MistakeRecordSchema, SubmissionSchema, SystemStatus, SystemModification, ErrorLogSchema
