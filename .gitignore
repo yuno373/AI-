@@ -3,5 +3,4 @@ __pycache__/
 .env
 *.db
 node_modules/
-dist/
 api_usage.json
