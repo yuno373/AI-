@@ -13,6 +13,26 @@ from admin import AdminMode, SecurityGuard
 
 app = FastAPI(title="StudyAutonomous AI API", version="1.0.0")
 
+# ============================================
+# 静的ファイル配信（Renderデプロイ用）
+# ============================================
+def find_frontend_dir():
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(backend_dir, "..", "frontend", "dist"),
+        os.path.join(backend_dir, "frontend", "dist"),
+        os.path.join(os.getcwd(), "frontend", "dist"),
+        os.path.join(os.getcwd(), "..", "frontend", "dist"),
+        "/opt/render/project/src/frontend/dist",
+    ]
+    for path in candidates:
+        abs_path = os.path.abspath(path)
+        if os.path.isdir(abs_path):
+            return abs_path
+    return os.path.abspath(candidates[0])
+
+FRONTEND_DIR = find_frontend_dir()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -90,6 +110,9 @@ async def startup():
 
 @app.get("/")
 async def root():
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
     return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -385,44 +408,14 @@ def _save_flashcards_from_chat(response: ChatResponse, db):
 def _save_mistake_analysis(response: ChatResponse, db):
     pass
 
-# ============================================
-# 静的ファイル配信（Renderデプロイ用）
-# ============================================
-import logging
-logger = logging.getLogger(__name__)
-
-def find_frontend_dir():
-    """フロントエンドディレクトリを探す"""
-    candidates = [
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist"),
-        os.path.join(os.getcwd(), "frontend", "dist"),
-        os.path.join(os.getcwd(), "..", "frontend", "dist"),
-        "/opt/render/project/src/frontend/dist",
-    ]
-    for path in candidates:
-        abs_path = os.path.abspath(path)
-        if os.path.isdir(abs_path):
-            logger.info(f"Found frontend dir: {abs_path}")
-            return abs_path
-    logger.warning("Frontend dir not found, using default")
-    return os.path.abspath(candidates[0])
-
-FRONTEND_DIR = find_frontend_dir()
-logger.info(f"FRONTEND_DIR: {FRONTEND_DIR}")
-logger.info(f"Files in FRONTEND_DIR: {os.listdir(FRONTEND_DIR) if os.path.isdir(FRONTEND_DIR) else 'NOT FOUND'}")
-
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
-    """フロントエンドの静的ファイルを配信"""
     if full_path.startswith("api/"):
         return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
-    
     file_path = os.path.join(FRONTEND_DIR, full_path)
     if os.path.isfile(file_path):
         return FileResponse(file_path)
-    
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.isfile(index_path):
         return FileResponse(index_path)
-    
     return {"message": "StudyAutonomous AI API", "version": "1.0.0", "status": "running"}
