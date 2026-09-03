@@ -388,7 +388,28 @@ def _save_mistake_analysis(response: ChatResponse, db):
 # ============================================
 # 静的ファイル配信（Renderデプロイ用）
 # ============================================
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+import logging
+logger = logging.getLogger(__name__)
+
+def find_frontend_dir():
+    """フロントエンドディレクトリを探す"""
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist"),
+        os.path.join(os.getcwd(), "frontend", "dist"),
+        os.path.join(os.getcwd(), "..", "frontend", "dist"),
+        "/opt/render/project/src/frontend/dist",
+    ]
+    for path in candidates:
+        abs_path = os.path.abspath(path)
+        if os.path.isdir(abs_path):
+            logger.info(f"Found frontend dir: {abs_path}")
+            return abs_path
+    logger.warning("Frontend dir not found, using default")
+    return os.path.abspath(candidates[0])
+
+FRONTEND_DIR = find_frontend_dir()
+logger.info(f"FRONTEND_DIR: {FRONTEND_DIR}")
+logger.info(f"Files in FRONTEND_DIR: {os.listdir(FRONTEND_DIR) if os.path.isdir(FRONTEND_DIR) else 'NOT FOUND'}")
 
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
